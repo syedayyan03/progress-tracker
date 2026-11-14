@@ -25,11 +25,15 @@ interface AppContextType {
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   sqliteToken: string;
+  isMobileMenuOpen: boolean;
+  toggleMobileMenu: () => void;
+  closeMobileMenu: () => void;
   activeModal: {
-    type: 'topic' | 'habit' | 'addTopic' | 'addSubject' | 'sampleData' | 'resetData' | 'clearCache';
+    type: 'topic' | 'habit' | 'addTopic' | 'addSubject' | 'sampleData' | 'resetData' | 'clearCache' | 'deleteSubject';
     id?: string;
     category?: string;
     defaultDay?: number;
+    subjectName?: string;
   } | null;
   openModal: (modal: NonNullable<AppContextType['activeModal']>) => void;
   closeModal: () => void;
@@ -110,9 +114,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [currentView, setCurrentView] = useState<ViewMode>('today');
-  const [selectedDate, setSelectedDate] = useState<string>(() => getYMD());
+  const [selectedDate, setSelectedDate] = useState<string>(() => '2026-11-15');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<AppContextType['activeModal']>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const toggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   useEffect(() => {
     try {
@@ -442,10 +450,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...prev.lists,
           subjects: filteredSubjects,
           topics: topicsMap,
+          medicine: subjectId === 'medicine' ? [] : prev.lists.medicine,
+          ortho: subjectId === 'ortho' ? [] : prev.lists.ortho,
         },
       };
     });
-    addToast('Subject removed');
+    addToast('Subject and syllabus topics removed');
+    closeModal();
   };
 
   const addItem = (categoryOrSubjectId: string, item: { title: string; day?: number; icon?: string }) => {
@@ -677,6 +688,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedDate,
         setSelectedDate,
         sqliteToken,
+        isMobileMenuOpen,
+        toggleMobileMenu,
+        closeMobileMenu,
         activeModal,
         openModal,
         closeModal,

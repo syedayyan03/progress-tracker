@@ -78,4 +78,30 @@ test.describe('Subjects and Custom Checklist Items', () => {
     await expect(page.getByText('Item added')).toBeVisible();
     await expect(page.getByText('Chest X-Ray Lobar Consolidation')).toBeVisible();
   });
+
+  test('should delete a subject with confirmation modal', async ({ page }) => {
+    // Navigate to Manage Tasks
+    await page.getByRole('button', { name: 'Manage Tasks' }).first().click();
+
+    // Select a subject, e.g. Opthal
+    await page.getByRole('button', { name: /Opthal/ }).click();
+
+    // Click "Delete Subject"
+    const deleteSubjBtn = page.getByRole('button', { name: 'Delete Subject' });
+    await expect(deleteSubjBtn).toBeVisible();
+    await deleteSubjBtn.click();
+
+    // Confirmation modal should appear
+    await expect(page.getByText(/Delete Subject "Opthal"?/i)).toBeVisible();
+
+    // Cancel first
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByText(/Delete Subject "Opthal"?/i)).not.toBeVisible();
+
+    // Click Delete again and confirm
+    await deleteSubjBtn.click();
+    await page.getByRole('button', { name: 'Delete Subject' }).last().click();
+
+    await expect(page.getByText('Subject and syllabus topics removed')).toBeVisible();
+  });
 });

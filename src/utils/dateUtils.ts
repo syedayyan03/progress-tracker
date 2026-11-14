@@ -1,28 +1,30 @@
 import type { DayLog } from '../types';
 
 export const getYMD = (d: Date = new Date()): string => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 };
 
 export const parseYMD = (ymd: string): Date => {
   const [y, m, d] = ymd.split('-').map(Number);
-  return new Date(y, m - 1, d);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
 };
 
 export const addDays = (ymd: string, days: number): string => {
-  const date = parseYMD(ymd);
-  date.setDate(date.getDate() + days);
+  const [y, m, d] = ymd.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + days, 0, 0, 0, 0));
   return getYMD(date);
 };
 
 export const getDaysDifference = (startYMD: string, currentYMD: string): number => {
-  const start = parseYMD(startYMD);
-  const current = parseYMD(currentYMD);
-  const diffTime = current.getTime() - start.getTime();
-  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const [y1, m1, d1] = startYMD.split('-').map(Number);
+  const [y2, m2, d2] = currentYMD.split('-').map(Number);
+  const startUTC = Date.UTC(y1, m1 - 1, d1, 0, 0, 0, 0);
+  const currentUTC = Date.UTC(y2, m2 - 1, d2, 0, 0, 0, 0);
+  const diffDays = Math.round((currentUTC - startUTC) / (1000 * 60 * 60 * 24));
+  return diffDays;
 };
 
 export const getSyllabusDay = (startYMD: string, currentYMD: string): number => {
@@ -31,8 +33,10 @@ export const getSyllabusDay = (startYMD: string, currentYMD: string): number => 
 };
 
 export const formatDateDisplay = (ymd: string): string => {
-  const date = parseYMD(ymd);
+  const [y, m, d] = ymd.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
   return date.toLocaleDateString('en-US', {
+    timeZone: 'UTC',
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -41,8 +45,10 @@ export const formatDateDisplay = (ymd: string): string => {
 };
 
 export const formatShortDate = (ymd: string): string => {
-  const date = parseYMD(ymd);
+  const [y, m, d] = ymd.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
   return date.toLocaleDateString('en-US', {
+    timeZone: 'UTC',
     month: 'short',
     day: 'numeric',
   });

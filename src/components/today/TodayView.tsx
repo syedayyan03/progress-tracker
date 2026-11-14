@@ -58,7 +58,7 @@ export const TodayView: React.FC = () => {
   const gradientId = useId();
   const dayLog = state.logs[selectedDate] || { habits: [], medicine: [], ortho: [], notes: '', subjectCompletions: {} };
   const syllabusDay = getSyllabusDay(state.settings.startDate, selectedDate);
-  const isToday = selectedDate === getYMD();
+  const isToday = selectedDate === (state.settings.startDate || '2026-11-15') || selectedDate === getYMD();
 
   // Subject filter state
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');

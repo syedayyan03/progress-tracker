@@ -3,14 +3,26 @@ import { useApp } from '../../context/AppContext';
 import { Sparkles, AlertTriangle, X, Trash2 } from 'lucide-react';
 
 export const ConfirmationModal: React.FC = () => {
-  const { activeModal, closeModal, loadSampleData, resetAllData, clearAllCacheData } = useApp();
+  const { activeModal, closeModal, loadSampleData, resetAllData, clearAllCacheData, deleteSubject } = useApp();
 
-  if (!activeModal || (activeModal.type !== 'sampleData' && activeModal.type !== 'resetData' && activeModal.type !== 'clearCache')) {
+  if (!activeModal || (
+    activeModal.type !== 'sampleData' && 
+    activeModal.type !== 'resetData' && 
+    activeModal.type !== 'clearCache' &&
+    activeModal.type !== 'deleteSubject'
+  )) {
     return null;
   }
 
   const isClearCache = activeModal.type === 'clearCache';
   const isReset = activeModal.type === 'resetData';
+  const isDeleteSubject = activeModal.type === 'deleteSubject';
+
+  const handleDeleteSubject = () => {
+    if (activeModal.id) {
+      deleteSubject(activeModal.id);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
@@ -21,9 +33,9 @@ export const ConfirmationModal: React.FC = () => {
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              isClearCache || isReset ? 'bg-rose-500/20 text-rose-400' : 'bg-indigo-500/20 text-indigo-400'
+              isClearCache || isReset || isDeleteSubject ? 'bg-rose-500/20 text-rose-400' : 'bg-indigo-500/20 text-indigo-400'
             }`}>
-              {isClearCache ? (
+              {isClearCache || isDeleteSubject ? (
                 <Trash2 className="w-5 h-5" />
               ) : isReset ? (
                 <AlertTriangle className="w-5 h-5" />
@@ -33,11 +45,13 @@ export const ConfirmationModal: React.FC = () => {
             </div>
             <div>
               <h3 className="font-display font-bold text-lg text-slate-100">
-                {isClearCache 
-                  ? 'Clear All Cache & Progress?' 
-                  : isReset 
-                    ? 'Reset All Application Data?' 
-                    : 'Load Sample Data Preview?'}
+                {isDeleteSubject
+                  ? `Delete Subject "${activeModal.subjectName || 'Subject'}"?`
+                  : isClearCache 
+                    ? 'Clear All Cache & Progress?' 
+                    : isReset 
+                      ? 'Reset All Application Data?' 
+                      : 'Load Sample Data Preview?'}
               </h3>
             </div>
           </div>
@@ -50,11 +64,13 @@ export const ConfirmationModal: React.FC = () => {
         </div>
 
         <p className="text-sm text-slate-300 leading-relaxed">
-          {isClearCache
-            ? 'Are you sure you want to clear all cache data? You will lose your entire progress, including all daily logs, habit checkoffs, topic reflections, custom subjects, and local SQLite3 database cache tokens. If you cancel, no cache will be deleted.'
-            : isReset
-              ? 'This action cannot be undone. It will permanently clear all your custom topics, logs, ratings, reflections, and settings, returning the tracker to its initial state.'
-              : 'This will populate your tracker with 45 days of realistic study sessions, habit completion logs, clinical notes, and ratings so you can test all analytics, heatmaps, and calendars immediately.'}
+          {isDeleteSubject
+            ? `Are you sure you want to delete ${activeModal.subjectName || 'this subject'}? All associated syllabus topics, checkoffs, and notes for this subject will be permanently removed. This action cannot be undone.`
+            : isClearCache
+              ? 'Are you sure you want to clear all cache data? You will lose your entire progress, including all daily logs, habit checkoffs, topic reflections, custom subjects, and local SQLite3 database cache tokens. If you cancel, no cache will be deleted.'
+              : isReset
+                ? 'This action cannot be undone. It will permanently clear all your custom topics, logs, ratings, reflections, and settings, returning the tracker to its initial state.'
+                : 'This will populate your tracker with 45 days of realistic study sessions, habit completion logs, clinical notes, and ratings so you can test all analytics, heatmaps, and calendars immediately.'}
         </p>
 
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
@@ -66,7 +82,15 @@ export const ConfirmationModal: React.FC = () => {
             Cancel
           </button>
 
-          {isClearCache ? (
+          {isDeleteSubject ? (
+            <button
+              type="button"
+              onClick={handleDeleteSubject}
+              className="px-5 py-2 rounded-xl text-sm font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition-all cursor-pointer"
+            >
+              Delete Subject
+            </button>
+          ) : isClearCache ? (
             <button
               type="button"
               onClick={clearAllCacheData}

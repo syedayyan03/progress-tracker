@@ -47,7 +47,7 @@ test.describe('Views Navigation & Global Controls', () => {
     // Click previous day
     await prevDayBtn.click();
     // Center button should now display formatted date instead of "Today"
-    const dateBtn = page.locator('header button').nth(1);
+    const dateBtn = page.getByTestId('date-switcher-center');
     await expect(dateBtn).not.toHaveText('Today');
 
     // Click center button to return to Today
@@ -73,5 +73,30 @@ test.describe('Views Navigation & Global Controls', () => {
     // Toggle back to dark
     await themeBtn.click();
     await expect(html).toHaveClass(/dark/);
+  });
+
+  test('should open and close hamburger sidebar drawer on mobile/tablet viewports', async ({ page }) => {
+    // Set mobile/tablet viewport
+    await page.setViewportSize({ width: 414, height: 896 });
+
+    const menuBtn = page.getByRole('button', { name: 'Open sidebar menu' });
+    await expect(menuBtn).toBeVisible();
+
+    // Click hamburger button to open drawer
+    await menuBtn.click();
+    const closeBtn = page.getByRole('button', { name: 'Close menu' });
+    await expect(closeBtn).toBeVisible();
+    await expect(page.getByText('SQLite3 Cache Active')).toBeVisible();
+
+    // Click Close 'X' button
+    await closeBtn.click();
+    await expect(closeBtn).not.toBeVisible();
+
+    // Open again and click a nav item inside drawer
+    await menuBtn.click();
+    const tasksDrawerBtn = page.locator('.fixed.inset-0.z-50 button:has-text("Manage Tasks")');
+    await expect(tasksDrawerBtn).toBeVisible();
+    await tasksDrawerBtn.click();
+    await expect(page).toHaveURL(/\/tasks/);
   });
 });

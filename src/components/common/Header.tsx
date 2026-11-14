@@ -1,14 +1,14 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { getYMD, addDays, formatDateDisplay, calculateStreak } from '../../utils/dateUtils';
-import { ChevronLeft, ChevronRight, Flame, Sun, Moon, Sparkles, Database } from 'lucide-react';
+import { addDays, formatDateDisplay, calculateStreak } from '../../utils/dateUtils';
+import { ChevronLeft, ChevronRight, Flame, Sun, Moon, Sparkles, Database, Menu } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { state, selectedDate, setSelectedDate, setTheme, sqliteToken } = useApp();
-  const todayStr = getYMD();
-  const isToday = selectedDate === todayStr;
+  const { state, selectedDate, setSelectedDate, setTheme, sqliteToken, toggleMobileMenu } = useApp();
+  const startDayStr = state.settings.startDate || '2026-11-15';
+  const isStartDay = selectedDate === startDayStr;
 
-  const streak = calculateStreak(state.logs, todayStr);
+  const streak = calculateStreak(state.logs, startDayStr);
 
   const handlePrevDay = () => {
     setSelectedDate(addDays(selectedDate, -1));
@@ -19,7 +19,7 @@ export const Header: React.FC = () => {
   };
 
   const handleTodayClick = () => {
-    setSelectedDate(todayStr);
+    setSelectedDate(startDayStr);
   };
 
   const isDarkMode = state.settings.theme === 'dark' || 
@@ -31,8 +31,18 @@ export const Header: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-3 sm:px-6 lg:px-8 py-3 bg-[#0b0f19]/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-b border-slate-800/80 transition-colors">
-      {/* Left side title / indicator */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      {/* Left side title / indicator with Hamburger for mobile/tablet */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <button
+          type="button"
+          onClick={toggleMobileMenu}
+          aria-label="Open sidebar menu"
+          title="Open menu"
+          className="md:hidden p-1.5 -ml-1 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 active:bg-slate-800 transition-colors cursor-pointer"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
         <span className="relative flex h-2.5 w-2.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -55,17 +65,18 @@ export const Header: React.FC = () => {
 
         <button
           onClick={handleTodayClick}
+          data-testid="date-switcher-center"
           className={`px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-            isToday
+            isStartDay
               ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
           }`}
-          title={isToday ? "Viewing Today" : "Click to jump to Today"}
+          title={isStartDay ? "Viewing Day 1 · Today (15/11/2026)" : "Click to jump to Day 1 (15/11/2026)"}
         >
-          {isToday ? (
+          {isStartDay ? (
             <>
               <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-indigo-200" />
-              <span>Today</span>
+              <span>Day 1 · Today</span>
             </>
           ) : (
             <span className="max-w-[85px] sm:max-w-none truncate">{formatDateDisplay(selectedDate)}</span>
