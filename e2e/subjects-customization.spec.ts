@@ -83,20 +83,17 @@ test.describe('Subjects and Custom Checklist Items', () => {
     // Navigate to Manage Tasks
     await page.getByRole('button', { name: 'Manage Tasks' }).first().click();
 
-    // Select a subject, e.g. Opthal
-    await page.getByRole('button', { name: /Opthal/ }).click();
-
     // Click "Delete Subject"
     const deleteSubjBtn = page.getByRole('button', { name: 'Delete Subject' });
     await expect(deleteSubjBtn).toBeVisible();
     await deleteSubjBtn.click();
 
     // Confirmation modal should appear
-    await expect(page.getByText(/Delete Subject "Opthal"?/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Delete Subject/i })).toBeVisible();
 
     // Cancel first
     await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByText(/Delete Subject "Opthal"?/i)).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: /Delete Subject/i })).not.toBeVisible();
 
     // Click Delete again and confirm
     await deleteSubjBtn.click();

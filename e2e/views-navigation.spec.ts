@@ -75,28 +75,27 @@ test.describe('Views Navigation & Global Controls', () => {
     await expect(html).toHaveClass(/dark/);
   });
 
-  test('should open and close hamburger sidebar drawer on mobile/tablet viewports', async ({ page }) => {
-    // Set mobile/tablet viewport
-    await page.setViewportSize({ width: 414, height: 896 });
+  test('should navigate via bottom navbar on mobile/tablet viewports and scroll to top', async ({ page }) => {
+    // Set mobile viewport
+    await page.setViewportSize({ width: 390, height: 844 });
 
-    const menuBtn = page.getByRole('button', { name: 'Open sidebar menu' });
-    await expect(menuBtn).toBeVisible();
+    // Scroll down on today view
+    await page.evaluate(() => {
+      const container = document.getElementById('app-scroll-container');
+      if (container) container.scrollTop = 500;
+    });
 
-    // Click hamburger button to open drawer
-    await menuBtn.click();
-    const closeBtn = page.getByRole('button', { name: 'Close menu' });
-    await expect(closeBtn).toBeVisible();
-    await expect(page.getByText('SQLite3 Cache Active')).toBeVisible();
+    // Tap Calendar in bottom navbar
+    const calendarBottomBtn = page.locator('nav.md\\:hidden').getByRole('button', { name: 'Calendar' });
+    await expect(calendarBottomBtn).toBeVisible();
+    await calendarBottomBtn.click();
+    await expect(page).toHaveURL(/\/calendar/);
 
-    // Click Close 'X' button
-    await closeBtn.click();
-    await expect(closeBtn).not.toBeVisible();
-
-    // Open again and click a nav item inside drawer
-    await menuBtn.click();
-    const tasksDrawerBtn = page.locator('.fixed.inset-0.z-50 button:has-text("Manage Tasks")');
-    await expect(tasksDrawerBtn).toBeVisible();
-    await tasksDrawerBtn.click();
-    await expect(page).toHaveURL(/\/tasks/);
+    // Verify scroll position was reset to 0
+    const scrollTop = await page.evaluate(() => {
+      const container = document.getElementById('app-scroll-container');
+      return container ? container.scrollTop : 0;
+    });
+    expect(scrollTop).toBe(0);
   });
 });

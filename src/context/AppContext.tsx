@@ -25,9 +25,6 @@ interface AppContextType {
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   sqliteToken: string;
-  isMobileMenuOpen: boolean;
-  toggleMobileMenu: () => void;
-  closeMobileMenu: () => void;
   activeModal: {
     type: 'topic' | 'habit' | 'addTopic' | 'addSubject' | 'sampleData' | 'resetData' | 'clearCache' | 'deleteSubject';
     id?: string;
@@ -115,12 +112,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [currentView, setCurrentView] = useState<ViewMode>('today');
   const [selectedDate, setSelectedDate] = useState<string>(() => '2026-11-15');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<AppContextType['activeModal']>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const toggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev);
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   useEffect(() => {
     try {
@@ -688,9 +681,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedDate,
         setSelectedDate,
         sqliteToken,
-        isMobileMenuOpen,
-        toggleMobileMenu,
-        closeMobileMenu,
         activeModal,
         openModal,
         closeModal,

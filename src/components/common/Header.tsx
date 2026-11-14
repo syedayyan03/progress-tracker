@@ -1,10 +1,10 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { addDays, formatDateDisplay, calculateStreak } from '../../utils/dateUtils';
-import { ChevronLeft, ChevronRight, Flame, Sun, Moon, Sparkles, Database, Menu } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Sun, Moon, Sparkles, Database } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { state, selectedDate, setSelectedDate, setTheme, sqliteToken, toggleMobileMenu } = useApp();
+  const { state, selectedDate, setSelectedDate, setTheme, sqliteToken } = useApp();
   const startDayStr = state.settings.startDate || '2026-11-15';
   const isStartDay = selectedDate === startDayStr;
 
@@ -31,18 +31,8 @@ export const Header: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-3 sm:px-6 lg:px-8 py-3 bg-[#0b0f19]/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-b border-slate-800/80 transition-colors">
-      {/* Left side title / indicator with Hamburger for mobile/tablet */}
-      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-        <button
-          type="button"
-          onClick={toggleMobileMenu}
-          aria-label="Open sidebar menu"
-          title="Open menu"
-          className="md:hidden p-1.5 -ml-1 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 active:bg-slate-800 transition-colors cursor-pointer"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-
+      {/* Left side title / indicator */}
+      <div className="flex items-center gap-2.5 shrink-0">
         <span className="relative flex h-2.5 w-2.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
