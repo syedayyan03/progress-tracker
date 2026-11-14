@@ -3,14 +3,14 @@ import { useApp } from '../../context/AppContext';
 import { Star, X, Calendar, AlertTriangle } from 'lucide-react';
 
 export const TopicDetailsModal: React.FC = () => {
-  const { activeModal, closeModal, state, updateTopicMeta } = useApp();
+  const { activeModal, closeModal, state, updateTopicMeta, getSubjectTopics } = useApp();
 
   if (!activeModal || activeModal.type !== 'topic' || !activeModal.id) {
     return null;
   }
 
   const { id: topicId, category = 'medicine' } = activeModal;
-  const topicItem = state.lists[category].find(t => t.id === topicId);
+  const topicItem = getSubjectTopics(category).find(t => t.id === topicId);
   const existingMeta = state.topicMeta[topicId] || {
     rating: 0,
     note: '',

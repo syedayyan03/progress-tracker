@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDateDisplay, getSyllabusDay, getYMD } from '../../utils/dateUtils';
+import { getSubjectTheme } from '../../utils/subjectColors';
 import { 
   Calendar, 
   Palette, 
@@ -15,7 +16,8 @@ import {
   Trash2, 
   Plus, 
   Check, 
-  Edit2 
+  Edit2,
+  BookPlus
 } from 'lucide-react';
 import type { ThemeMode } from '../../types';
 
@@ -30,13 +32,17 @@ export const SettingsView: React.FC = () => {
     deleteItem, 
     exportData, 
     importData, 
-    openModal 
+    openModal,
+    getSubjectTopics,
+    deleteSubject
   } = useApp();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Settings active checklist tab
-  const [activeTab, setActiveTab] = useState<'medicine' | 'ortho' | 'habits'>('medicine');
+  const subjects = state.lists.subjects || [];
+
+  // Settings active checklist tab (defaults to 'medicine')
+  const [activeTab, setActiveTab] = useState<string>('medicine');
 
   // Add Item form state
   const [newTitle, setNewTitle] = useState('');
@@ -98,7 +104,9 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const listItems = state.lists[activeTab] as any[];
+  const listItems = (activeTab === 'habits' ? state.lists.habits : getSubjectTopics(activeTab)) as any[];
+  const activeSubject = subjects.find(s => s.id === activeTab);
+  const isCustomSubject = activeSubject && !['medicine', 'ortho'].includes(activeSubject.id);
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-16">
@@ -175,47 +183,71 @@ export const SettingsView: React.FC = () => {
 
       {/* 3. Manage Checklist Items */}
       <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-        <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
-          <ListOrdered className="w-5 h-5 text-indigo-400" />
-          <h3 className="font-display font-bold text-base text-slate-100">
-            Manage Checklist Items
-          </h3>
+        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <ListOrdered className="w-5 h-5 text-indigo-400" />
+            <h3 className="font-display font-bold text-base text-slate-100">
+              Manage Checklist Items
+            </h3>
+          </div>
+
+          {/* Add Subject Button */}
+          <button
+            type="button"
+            onClick={() => openModal({ type: 'addSubject' })}
+            className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <BookPlus className="w-4 h-4" />
+            <span>+ Add Subject</span>
+          </button>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
-          <button
-            onClick={() => setActiveTab('medicine')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'medicine'
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Medicine ({state.lists.medicine.length})
-          </button>
+        {/* Dynamic Subjects Tab Bar */}
+        <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {subjects.map(subj => {
+              const count = getSubjectTopics(subj.id).length;
+              const theme = getSubjectTheme(subj.color);
+              const isActive = activeTab === subj.id;
+              return (
+                <button
+                  key={subj.id}
+                  onClick={() => setActiveTab(subj.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                    isActive
+                      ? `${theme.badge} ring-1 ring-white/20`
+                      : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
+                  }`}
+                >
+                  {subj.name} ({count})
+                </button>
+              );
+            })}
 
-          <button
-            onClick={() => setActiveTab('ortho')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'ortho'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Ortho ({state.lists.ortho.length})
-          </button>
+            <button
+              onClick={() => setActiveTab('habits')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                activeTab === 'habits'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
+              }`}
+            >
+              Habits ({state.lists.habits.length})
+            </button>
+          </div>
 
-          <button
-            onClick={() => setActiveTab('habits')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'habits'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Habits ({state.lists.habits.length})
-          </button>
+          {isCustomSubject && (
+            <button
+              type="button"
+              onClick={() => {
+                deleteSubject(activeSubject.id);
+                setActiveTab('medicine');
+              }}
+              className="text-xs text-rose-400 hover:text-rose-300 px-2 py-1 rounded-lg hover:bg-rose-500/10 shrink-0 font-medium transition-colors"
+            >
+              Remove Subject
+            </button>
+          )}
         </div>
 
         {/* Add Item Form */}
@@ -239,7 +271,7 @@ export const SettingsView: React.FC = () => {
             type="text"
             value={newTitle}
             onChange={e => setNewTitle(e.target.value)}
-            placeholder={`Add new ${activeTab} item...`}
+            placeholder={`Add new ${activeSubject ? activeSubject.name : 'habit'} item...`}
             className="w-full px-3.5 py-2 rounded-xl bg-[#0b0f19] border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500"
           />
 

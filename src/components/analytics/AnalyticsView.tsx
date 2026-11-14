@@ -7,6 +7,7 @@ import {
   calculateStreak, 
   calculateDayStats 
 } from '../../utils/dateUtils';
+import { getSubjectTheme } from '../../utils/subjectColors';
 import { 
   CheckCircle2, 
   Percent, 
@@ -39,28 +40,33 @@ import {
 } from 'recharts';
 
 export const AnalyticsView: React.FC = () => {
-  const { state } = useApp();
+  const { state, getSubjectTopics, isTopicCompleted } = useApp();
   const todayStr = getYMD();
 
+  const subjects = state.lists.subjects || [];
+
   // Filters
-  const [heatmapTab, setHeatmapTab] = useState<'Overall' | 'Medicine' | 'Ortho' | 'Habits'>('Overall');
+  const [heatmapTab, setHeatmapTab] = useState<string>('Overall');
   const [trendRange, setTrendRange] = useState<'7D' | '30D' | '90D' | 'All'>('30D');
 
-  // Total topics
-  const totalMedTopics = state.lists.medicine.length;
-  const totalOrthoTopics = state.lists.ortho.length;
-  const totalSyllabusTopics = totalMedTopics + totalOrthoTopics;
+  // Total topics across all subjects
+  let totalSyllabusTopics = 0;
+  const completedTopicIds = new Set<string>();
 
-  // Set of completed topics across all logs
-  const completedMedIds = new Set<string>();
-  const completedOrthoIds = new Set<string>();
+  subjects.forEach(s => {
+    const topics = getSubjectTopics(s.id);
+    totalSyllabusTopics += topics.length;
 
-  Object.values(state.logs).forEach(log => {
-    log.medicine?.forEach(id => completedMedIds.add(id));
-    log.ortho?.forEach(id => completedOrthoIds.add(id));
+    Object.keys(state.logs).forEach(dateStr => {
+      topics.forEach(t => {
+        if (isTopicCompleted(dateStr, s.id, t.id)) {
+          completedTopicIds.add(t.id);
+        }
+      });
+    });
   });
 
-  const totalTopicsCompleted = completedMedIds.size + completedOrthoIds.size;
+  const totalTopicsCompleted = completedTopicIds.size;
   const remainingTopics = Math.max(0, totalSyllabusTopics - totalTopicsCompleted);
 
   // Overall Completion across all recorded days
@@ -135,7 +141,6 @@ export const AnalyticsView: React.FC = () => {
 
   // 30-day Habit Performance
   const habitPerformance = useMemo(() => {
-    // Check last 30 days
     const last30Days: string[] = [];
     for (let i = 29; i >= 0; i--) {
       last30Days.push(addDays(todayStr, -i));
@@ -157,7 +162,7 @@ export const AnalyticsView: React.FC = () => {
         title: habit.title,
         percent,
       };
-    }).sort((a, b) => a.percent - b.percent); // Lowest to highest
+    }).sort((a, b) => a.percent - b.percent);
   }, [state.logs, state.lists.habits, todayStr]);
 
   const lowestHabit = habitPerformance[0] || { title: 'Workout', percent: 50 };
@@ -177,7 +182,6 @@ export const AnalyticsView: React.FC = () => {
       const val = log ? stats.percent : 0;
       runningPercentages.push(val);
 
-      // 7-day moving avg
       const slice = runningPercentages.slice(Math.max(0, runningPercentages.length - 7));
       const mAvg = Math.round(slice.reduce((acc, curr) => acc + curr, 0) / slice.length);
 
@@ -193,10 +197,26 @@ export const AnalyticsView: React.FC = () => {
     return list;
   }, [state.logs, trendRange, todayStr]);
 
-  // Radar Data (Medicine, Ortho, Habits balance)
+  // Radar Data
   const radarData = useMemo(() => {
-    const medPercent = totalMedTopics > 0 ? Math.round((completedMedIds.size / totalMedTopics) * 100) : 0;
-    const orthoPercent = totalOrthoTopics > 0 ? Math.round((completedOrthoIds.size / totalOrthoTopics) * 100) : 0;
+    const medTopics = getSubjectTopics('medicine');
+    const orthoTopics = getSubjectTopics('ortho');
+    const paedTopics = getSubjectTopics('paediatrics');
+
+    const calcSubjPct = (sId: string, topics: Array<{ id: string }>) => {
+      if (topics.length === 0) return 30;
+      let count = 0;
+      Object.keys(state.logs).forEach(d => {
+        topics.forEach(t => {
+          if (isTopicCompleted(d, sId, t.id)) count++;
+        });
+      });
+      return Math.round((count / topics.length) * 100);
+    };
+
+    const medPercent = calcSubjPct('medicine', medTopics);
+    const orthoPercent = calcSubjPct('ortho', orthoTopics);
+    const paedPercent = calcSubjPct('paediatrics', paedTopics);
     const habitsAvg = habitPerformance.length > 0
       ? Math.round(habitPerformance.reduce((acc, h) => acc + h.percent, 0) / habitPerformance.length)
       : 70;
@@ -204,11 +224,12 @@ export const AnalyticsView: React.FC = () => {
     return [
       { subject: 'Medicine', score: Math.max(15, medPercent) },
       { subject: 'Orthopaedics', score: Math.max(15, orthoPercent) },
+      { subject: 'Paediatrics', score: Math.max(15, paedPercent) },
       { subject: 'Habits', score: habitsAvg },
       { subject: 'Consistency', score: Math.min(100, Math.max(20, currentStreak * 4)) },
       { subject: 'Pace', score: Math.min(100, Math.max(25, Math.round(Number(velocity) * 80))) },
     ];
-  }, [completedMedIds.size, completedOrthoIds.size, totalMedTopics, totalOrthoTopics, habitPerformance, currentStreak, velocity]);
+  }, [state.logs, habitPerformance, currentStreak, velocity, getSubjectTopics, isTopicCompleted]);
 
   // Weekly Comparison Data (W1 to W8)
   const weeklyData = useMemo(() => {
@@ -233,7 +254,7 @@ export const AnalyticsView: React.FC = () => {
     return weeks;
   }, [state.logs, todayStr]);
 
-  // 52-week activity heatmap (spans 52 weeks = 364 days)
+  // 52-week activity heatmap
   const heatmapWeeks = useMemo(() => {
     const weeksList: Array<Array<{ dateStr: string; intensity: number; count: number }>> = [];
     const totalDays = 52 * 7;
@@ -252,12 +273,14 @@ export const AnalyticsView: React.FC = () => {
       if (log) {
         if (heatmapTab === 'Overall') {
           score = calculateDayStats(log, 12).completed;
-        } else if (heatmapTab === 'Medicine') {
-          score = (log.medicine?.length || 0) * 4;
-        } else if (heatmapTab === 'Ortho') {
-          score = (log.ortho?.length || 0) * 4;
         } else if (heatmapTab === 'Habits') {
           score = log.habits?.length || 0;
+        } else {
+          // Specific subject tab
+          const sId = heatmapTab.toLowerCase();
+          const count = log.subjectCompletions?.[sId]?.length || 
+            (sId === 'medicine' ? log.medicine?.length : sId === 'ortho' ? log.ortho?.length : 0) || 0;
+          score = count * 4;
         }
       }
 
@@ -282,9 +305,6 @@ export const AnalyticsView: React.FC = () => {
     return weeksList;
   }, [state.logs, heatmapTab, todayStr]);
 
-  const medPercentDone = Math.round((completedMedIds.size / totalMedTopics) * 100);
-  const orthoPercentDone = Math.round((completedOrthoIds.size / totalOrthoTopics) * 100);
-
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-16">
       {/* Header */}
@@ -299,7 +319,6 @@ export const AnalyticsView: React.FC = () => {
 
       {/* 6 Top KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        {/* 1. Topics Completed */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -317,7 +336,6 @@ export const AnalyticsView: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Overall Completion */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -335,7 +353,6 @@ export const AnalyticsView: React.FC = () => {
           </div>
         </div>
 
-        {/* 3. Current Streak */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -353,7 +370,6 @@ export const AnalyticsView: React.FC = () => {
           </div>
         </div>
 
-        {/* 4. Projected Finish */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -371,7 +387,6 @@ export const AnalyticsView: React.FC = () => {
           </div>
         </div>
 
-        {/* 5. Best Day Record */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -389,7 +404,6 @@ export const AnalyticsView: React.FC = () => {
           </div>
         </div>
 
-        {/* 6. Pending / Overdue */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -464,12 +478,12 @@ export const AnalyticsView: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-900/80 border border-slate-800 rounded-xl p-1">
-            {(['Overall', 'Medicine', 'Ortho', 'Habits'] as const).map(tab => (
+          <div className="flex items-center gap-1 bg-slate-900/80 border border-slate-800 rounded-xl p-1 overflow-x-auto">
+            {['Overall', 'Medicine', 'Ortho', 'Habits'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setHeatmapTab(tab)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3 py-1 rounded-lg text-xs font-semibold shrink-0 transition-all ${
                   heatmapTab === tab
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -591,76 +605,53 @@ export const AnalyticsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Subject Progress Rings & Habit Performance */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Subject Progress Rings */}
-        <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-md flex flex-col justify-between gap-4">
-          <div>
-            <h3 className="font-display font-bold text-base text-slate-100">
-              Syllabus Completion
-            </h3>
-            <p className="text-xs text-slate-400">
-              Subject level progress against standard curriculum
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 my-auto">
-            {/* Medicine */}
-            <div className="flex flex-col items-center text-center p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-              <div className="relative w-20 h-20 mb-2">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="40" cy="40" r="32" stroke="#1e293b" strokeWidth="6" fill="none" />
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="32"
-                    stroke="#f43f5e"
-                    strokeWidth="6"
-                    fill="none"
-                    strokeDasharray={201}
-                    strokeDashoffset={201 - (medPercentDone / 100) * 201}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center font-display font-bold text-lg text-slate-100">
-                  {medPercentDone}%
-                </div>
-              </div>
-              <span className="text-xs font-bold text-rose-400 uppercase tracking-wide">Medicine</span>
-              <span className="text-[11px] text-slate-400 mt-0.5">
-                {totalMedTopics - completedMedIds.size} topics left
-              </span>
-            </div>
-
-            {/* Orthopaedics */}
-            <div className="flex flex-col items-center text-center p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-              <div className="relative w-20 h-20 mb-2">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="40" cy="40" r="32" stroke="#1e293b" strokeWidth="6" fill="none" />
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="32"
-                    stroke="#06b6d4"
-                    strokeWidth="6"
-                    fill="none"
-                    strokeDasharray={201}
-                    strokeDashoffset={201 - (orthoPercentDone / 100) * 201}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center font-display font-bold text-lg text-slate-100">
-                  {orthoPercentDone}%
-                </div>
-              </div>
-              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wide">Orthopaedics</span>
-              <span className="text-[11px] text-slate-400 mt-0.5">
-                {totalOrthoTopics - completedOrthoIds.size} topics left
-              </span>
-            </div>
-          </div>
+      {/* Subject Progress Grid */}
+      <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-md flex flex-col gap-4">
+        <div>
+          <h3 className="font-display font-bold text-base text-slate-100">
+            Syllabus Completion Across Subjects
+          </h3>
+          <p className="text-xs text-slate-400">
+            Progress tracked across each clinical subject in your curriculum
+          </p>
         </div>
 
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          {subjects.map(subj => {
+            const topics = getSubjectTopics(subj.id);
+            const total = topics.length;
+            let completed = 0;
+            Object.keys(state.logs).forEach(d => {
+              topics.forEach(t => {
+                if (isTopicCompleted(d, subj.id, t.id)) completed++;
+              });
+            });
+
+            const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+            const theme = getSubjectTheme(subj.color);
+
+            return (
+              <div
+                key={subj.id}
+                className="flex flex-col items-center text-center p-3 rounded-xl bg-slate-900/60 border border-slate-800"
+              >
+                <div className="font-display font-bold text-lg text-slate-100 mb-0.5">
+                  {pct}%
+                </div>
+                <span className={`text-xs font-bold uppercase tracking-wide truncate max-w-full ${theme.text}`}>
+                  {subj.name}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-1">
+                  {completed}/{total} Topics
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Habit Performance & Balance */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Habit Performance (30 Days) */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-md flex flex-col gap-3">
           <div>
@@ -696,10 +687,7 @@ export const AnalyticsView: React.FC = () => {
             })}
           </div>
         </div>
-      </div>
 
-      {/* Balance Radar & Day of Week Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Radar Chart */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-md flex flex-col gap-3">
           <div>
@@ -707,7 +695,7 @@ export const AnalyticsView: React.FC = () => {
               Study & Habit Domain Balance
             </h3>
             <p className="text-xs text-slate-400">
-              Multi-dimensional balance across medicine, ortho, habits, pace and consistency
+              Multi-dimensional balance across clinical domains, habits and consistency
             </p>
           </div>
 
@@ -722,8 +710,11 @@ export const AnalyticsView: React.FC = () => {
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
 
-        {/* Day of Week Analysis */}
+      {/* Day of Week Consistency & Weekly Comparison */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Day of Week Consistency */}
         <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-md flex flex-col gap-3">
           <div>
             <h3 className="font-display font-bold text-base text-slate-100">
@@ -734,7 +725,7 @@ export const AnalyticsView: React.FC = () => {
             </p>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dayOfWeekStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -764,36 +755,36 @@ export const AnalyticsView: React.FC = () => {
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      {/* Weekly Progress Comparison */}
-      <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-md flex flex-col gap-3">
-        <div>
-          <h3 className="font-display font-bold text-base text-slate-100">
-            Weekly Progress Comparison (Past 8 Weeks)
-          </h3>
-          <p className="text-xs text-slate-400">
-            Consecutive week-by-week average completion performance
-          </p>
-        </div>
+        {/* Weekly Progress Comparison */}
+        <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-md flex flex-col gap-3">
+          <div>
+            <h3 className="font-display font-bold text-base text-slate-100">
+              Weekly Progress Comparison (Past 8 Weeks)
+            </h3>
+            <p className="text-xs text-slate-400">
+              Consecutive week-by-week average completion performance
+            </p>
+          </div>
 
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="week" stroke="#64748b" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#64748b" tick={{ fontSize: 11 }} domain={[0, 100]} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#0f172a',
-                  borderColor: '#334155',
-                  borderRadius: '0.75rem',
-                  color: '#f8fafc',
-                }}
-              />
-              <Bar dataKey="completion" name="Weekly Avg %" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis dataKey="week" stroke="#64748b" tick={{ fontSize: 11 }} />
+                <YAxis stroke="#64748b" tick={{ fontSize: 11 }} domain={[0, 100]} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#0f172a',
+                    borderColor: '#334155',
+                    borderRadius: '0.75rem',
+                    color: '#f8fafc',
+                  }}
+                />
+                <Bar dataKey="completion" name="Weekly Avg %" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>

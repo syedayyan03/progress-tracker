@@ -2,6 +2,12 @@ export type ViewMode = 'today' | 'calendar' | 'analytics' | 'settings';
 
 export type ThemeMode = 'system' | 'dark' | 'light';
 
+export interface SubjectConfig {
+  id: string;
+  name: string;
+  color: string; // 'rose' | 'cyan' | 'amber' | 'pink' | 'blue' | 'emerald' | 'violet' | 'indigo' | 'teal' | 'yellow'
+}
+
 export interface TopicItem {
   id: string;
   day: number;
@@ -25,6 +31,7 @@ export interface DayLog {
   habits: string[];
   medicine: string[];
   ortho: string[];
+  subjectCompletions?: Record<string, string[]>;
   notes: string;
 }
 
@@ -34,6 +41,8 @@ export interface AppState {
     theme: ThemeMode;
   };
   lists: {
+    subjects: SubjectConfig[];
+    topics: Record<string, TopicItem[]>;
     medicine: TopicItem[];
     ortho: TopicItem[];
     habits: HabitItem[];

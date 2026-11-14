@@ -7,11 +7,13 @@ import {
   getSyllabusDay, 
   calculateDayStats 
 } from '../../utils/dateUtils';
+import { getSubjectTheme } from '../../utils/subjectColors';
 import { 
   ChevronLeft, 
   ChevronRight, 
   Check, 
-  Info
+  Info,
+  Plus
 } from 'lucide-react';
 
 export const CalendarView: React.FC = () => {
@@ -22,7 +24,9 @@ export const CalendarView: React.FC = () => {
     toggleHabit, 
     toggleTopic, 
     updateDailyNotes, 
-    openModal 
+    openModal,
+    getSubjectTopics,
+    isTopicCompleted
   } = useApp();
 
   const selectedDateObj = parseYMD(selectedDate);
@@ -53,6 +57,7 @@ export const CalendarView: React.FC = () => {
   };
 
   const weeks = getMonthMatrix(currentYear, currentMonth);
+  const subjects = state.lists.subjects || [];
 
   // Calculate monthly stats
   let totalPercentSum = 0;
@@ -82,12 +87,40 @@ export const CalendarView: React.FC = () => {
   const avgCompletion = recordedDaysCount > 0 ? Math.round(totalPercentSum / recordedDaysCount) : 0;
 
   // Selected Day Details
-  const selectedLog = state.logs[selectedDate] || { habits: [], medicine: [], ortho: [], notes: '' };
+  const selectedLog = state.logs[selectedDate] || { habits: [], medicine: [], ortho: [], notes: '', subjectCompletions: {} };
   const selectedSyllabusDay = getSyllabusDay(state.settings.startDate, selectedDate);
-  const selectedMedTopics = state.lists.medicine.filter(t => t.day === selectedSyllabusDay);
-  const selectedOrthoTopics = state.lists.ortho.filter(t => t.day === selectedSyllabusDay);
-  const totalItemsCount = selectedMedTopics.length + selectedOrthoTopics.length + state.lists.habits.length;
-  const selectedDayStats = calculateDayStats(selectedLog, totalItemsCount > 0 ? totalItemsCount : 12);
+
+  // Topics for selected syllabus day
+  const selectedDayTopics: Array<{
+    subjectId: string;
+    subjectName: string;
+    subjectColor: string;
+    topic: { id: string; day: number; title: string };
+  }> = [];
+
+  subjects.forEach(subject => {
+    const topics = getSubjectTopics(subject.id);
+    const dayTopics = topics.filter(t => t.day === selectedSyllabusDay);
+    dayTopics.forEach(topic => {
+      selectedDayTopics.push({
+        subjectId: subject.id,
+        subjectName: subject.name,
+        subjectColor: subject.color,
+        topic,
+      });
+    });
+  });
+
+  const totalDayItems = selectedDayTopics.length + state.lists.habits.length;
+  let completedTopicsCount = 0;
+  selectedDayTopics.forEach(item => {
+    if (isTopicCompleted(selectedDate, item.subjectId, item.topic.id)) {
+      completedTopicsCount++;
+    }
+  });
+  const completedHabitsCount = state.lists.habits.filter(h => selectedLog.habits?.includes(h.id)).length;
+  const completedTotal = completedTopicsCount + completedHabitsCount;
+  const selectedDayPercent = totalDayItems > 0 ? Math.min(100, Math.round((completedTotal / totalDayItems) * 100)) : 0;
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-16">
@@ -232,7 +265,7 @@ export const CalendarView: React.FC = () => {
                       <span className="text-[10px] text-transparent select-none">-</span>
                     )}
 
-                    {/* Subject Dots: Coral for Med, Cyan for Ortho */}
+                    {/* Subject Dots: Coral for Med, Cyan for Ortho, etc. */}
                     <div className="flex items-center gap-1 mt-1">
                       {stats.hasMedicine && (
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500" title="Medicine Completed" />
@@ -269,8 +302,15 @@ export const CalendarView: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-slate-300">
-              {selectedDayStats.percent}% Completed ({selectedDayStats.completed}/{selectedDayStats.total})
+              {selectedDayPercent}% Completed ({completedTotal}/{totalDayItems})
             </span>
+            <button
+              onClick={() => openModal({ type: 'addTopic', defaultDay: selectedSyllabusDay })}
+              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Topic</span>
+            </button>
           </div>
         </div>
 
@@ -281,8 +321,9 @@ export const CalendarView: React.FC = () => {
           </h4>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {selectedMedTopics.map(topic => {
-              const isDone = selectedLog.medicine.includes(topic.id);
+            {selectedDayTopics.map(({ subjectId, subjectName, subjectColor, topic }) => {
+              const isDone = isTopicCompleted(selectedDate, subjectId, topic.id);
+              const theme = getSubjectTheme(subjectColor);
               return (
                 <div
                   key={topic.id}
@@ -291,7 +332,7 @@ export const CalendarView: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => toggleTopic(selectedDate, topic.id, 'medicine')}
+                      onClick={() => toggleTopic(selectedDate, topic.id, subjectId)}
                       className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
                         isDone ? 'bg-emerald-500 text-slate-950' : 'border-2 border-slate-600'
                       }`}
@@ -299,8 +340,8 @@ export const CalendarView: React.FC = () => {
                       {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </button>
                     <div>
-                      <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">
-                        Medicine
+                      <span className={`text-[10px] font-bold uppercase tracking-wider block ${theme.text}`}>
+                        {subjectName}
                       </span>
                       <span className={`text-sm font-medium ${isDone ? 'line-through text-slate-500' : 'text-slate-200'}`}>
                         {topic.title}
@@ -308,43 +349,7 @@ export const CalendarView: React.FC = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => openModal({ type: 'topic', id: topic.id, category: 'medicine' })}
-                    className="p-1 rounded text-slate-400 hover:text-white"
-                  >
-                    <Info className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
-
-            {selectedOrthoTopics.map(topic => {
-              const isDone = selectedLog.ortho.includes(topic.id);
-              return (
-                <div
-                  key={topic.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800/80"
-                >
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleTopic(selectedDate, topic.id, 'ortho')}
-                      className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
-                        isDone ? 'bg-emerald-500 text-slate-950' : 'border-2 border-slate-600'
-                      }`}
-                    >
-                      {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    </button>
-                    <div>
-                      <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
-                        Orthopaedics
-                      </span>
-                      <span className={`text-sm font-medium ${isDone ? 'line-through text-slate-500' : 'text-slate-200'}`}>
-                        {topic.title}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => openModal({ type: 'topic', id: topic.id, category: 'ortho' })}
+                    onClick={() => openModal({ type: 'topic', id: topic.id, category: subjectId })}
                     className="p-1 rounded text-slate-400 hover:text-white"
                   >
                     <Info className="w-4 h-4" />
@@ -360,7 +365,7 @@ export const CalendarView: React.FC = () => {
           </h4>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {state.lists.habits.map(habit => {
-              const isDone = selectedLog.habits.includes(habit.id);
+              const isDone = selectedLog.habits?.includes(habit.id);
               return (
                 <button
                   key={habit.id}

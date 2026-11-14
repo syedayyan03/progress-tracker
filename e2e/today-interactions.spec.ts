@@ -43,7 +43,7 @@ test.describe('Today View Interactions & Data Persistence', () => {
 
     // Progress percentage should be greater than 0%
     await expect(page.getByText('0%')).not.toBeVisible();
-    await expect(page.getByText('/12 Done')).toBeVisible();
+    await expect(page.getByText(/\d+ Done/).first()).toBeVisible();
   });
 
   test('should open and save topic details modal', async ({ page }) => {

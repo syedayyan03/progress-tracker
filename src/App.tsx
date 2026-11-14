@@ -9,6 +9,8 @@ import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
 import { TopicDetailsModal } from './components/modals/TopicDetailsModal';
 import { HabitDetailsModal } from './components/modals/HabitDetailsModal';
+import { AddTopicModal } from './components/modals/AddTopicModal';
+import { AddSubjectModal } from './components/modals/AddSubjectModal';
 import { ConfirmationModal } from './components/modals/ConfirmationModal';
 
 const AppContent: React.FC = () => {
@@ -34,6 +36,8 @@ const AppContent: React.FC = () => {
       {/* Interactive Modals */}
       <TopicDetailsModal />
       <HabitDetailsModal />
+      <AddTopicModal />
+      <AddSubjectModal />
       <ConfirmationModal />
 
       {/* Floating Notifications */}

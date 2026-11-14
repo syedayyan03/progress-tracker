@@ -23,7 +23,7 @@ test.describe('Settings View & CRUD Operations', () => {
     // Add new topic
     const titleInput = page.locator('input[placeholder*="Add new"]');
     await titleInput.fill('Echocardiography Fundamentals');
-    await page.getByRole('button', { name: 'Add' }).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
 
     await expect(page.getByText('Item added')).toBeVisible();
     await expect(page.getByText('Echocardiography Fundamentals')).toBeVisible();
