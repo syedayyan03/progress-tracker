@@ -150,34 +150,34 @@ export const TodayView: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-16 animate-in fade-in duration-300">
       {/* 1. Compact, High-Density Executive Hero Header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#10172a] via-[#0d1424] to-[#09101d] border border-slate-800/90 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
-        <div className="absolute top-0 right-1/4 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#10172a] via-[#0d1424] to-[#09101d] border border-slate-800/90 p-4 sm:p-5 shadow-xl backdrop-blur-xl">
+        <div className="absolute top-0 right-1/4 w-60 h-60 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative flex flex-col md:flex-row items-center justify-between gap-5">
-          <div className="flex flex-col gap-2 text-center md:text-left flex-1 min-w-0">
+        <div className="relative flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col gap-1.5 text-center md:text-left flex-1 min-w-0">
             {/* Date & Syllabus Day Pill */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 border border-indigo-500/30 text-indigo-300 text-xs font-semibold self-center md:self-start shadow-sm backdrop-blur-md">
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-900/80 border border-indigo-500/30 text-indigo-300 text-xs font-semibold self-center md:self-start shadow-sm">
               <Calendar className="w-3.5 h-3.5 text-indigo-400" />
               <span>{formatDateDisplay(selectedDate)}</span>
               <span className="text-slate-600">•</span>
               <span className="font-bold text-slate-100">Syllabus Day {syllabusDay}</span>
             </div>
 
-            <h2 className="font-display font-extrabold text-2xl sm:text-3xl text-slate-100 tracking-tight leading-tight">
+            <h2 className="font-display font-extrabold text-xl sm:text-2xl text-slate-100 tracking-tight leading-tight">
               {isToday ? "Today's Study & Habits" : `Checklist for ${formatDateDisplay(selectedDate)}`}
             </h2>
 
-            <p className="text-xs sm:text-sm text-slate-300 max-w-lg font-medium">
+            <p className="text-xs text-slate-400 max-w-lg font-medium">
               {motivationalMsg}
             </p>
 
             {/* Quick Metrics Bar inside Hero */}
-            <div className="flex items-center justify-center md:justify-start gap-3 pt-1 text-xs">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-800 text-slate-300">
+            <div className="flex items-center justify-center md:justify-start gap-2 pt-1 text-xs">
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-900/60 border border-slate-800 text-slate-300">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 <span><strong className="text-slate-100">{completedTotal}</strong> of {totalDayItems} completed</span>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-800 text-slate-300">
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-900/60 border border-slate-800 text-slate-300">
                 <Layers className="w-3.5 h-3.5 text-indigo-400" />
                 <span><strong className="text-slate-100">{remainingTotal}</strong> remaining</span>
               </div>
@@ -258,7 +258,7 @@ export const TodayView: React.FC = () => {
           </div>
 
           {/* Integrated Filter Pill Strip */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-thin">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
             <button
               onClick={() => setSelectedSubjectFilter('all')}
               className={`px-3 py-1.5 rounded-xl font-bold shrink-0 transition-all cursor-pointer ${
