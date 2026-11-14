@@ -179,12 +179,6 @@ export const DEFAULT_HABITS: HabitItem[] = [
 ];
 
 export const getInitialState = (): AppState => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const todayStr = `${year}-${month}-${day}`;
-
   const defaultTopics: Record<string, TopicItem[]> = {
     medicine: DEFAULT_MEDICINE_TOPICS,
     ortho: DEFAULT_ORTHO_TOPICS,
@@ -200,7 +194,7 @@ export const getInitialState = (): AppState => {
 
   return {
     settings: {
-      startDate: todayStr,
+      startDate: '2026-11-15',
       theme: 'dark',
     },
     lists: {
