@@ -1,5 +1,6 @@
 import React from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppProvider } from './context/AppContext';
 import { Sidebar } from './components/common/Sidebar';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/Toast';
@@ -13,23 +14,26 @@ import { AddTopicModal } from './components/modals/AddTopicModal';
 import { AddSubjectModal } from './components/modals/AddSubjectModal';
 import { ConfirmationModal } from './components/modals/ConfirmationModal';
 
-const AppContent: React.FC = () => {
-  const { currentView } = useApp();
-
+const AppLayout: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-[#0b0f19] text-slate-100 antialiased font-sans">
-      {/* Sidebar Navigation */}
+      {/* Sidebar Navigation (Desktop) & Bottom Bar (Mobile) */}
       <Sidebar />
 
       {/* Main Body Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <Header />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
-          {currentView === 'today' && <TodayView />}
-          {currentView === 'calendar' && <CalendarView />}
-          {currentView === 'analytics' && <AnalyticsView />}
-          {currentView === 'settings' && <SettingsView />}
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-24 md:pb-8 w-full max-w-7xl mx-auto">
+          <Routes>
+            <Route path="/" element={<Navigate to="/today" replace />} />
+            <Route path="/today" element={<TodayView />} />
+            <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/calender" element={<Navigate to="/calendar" replace />} />
+            <Route path="/analytics" element={<AnalyticsView />} />
+            <Route path="/settings" element={<SettingsView />} />
+            <Route path="*" element={<Navigate to="/today" replace />} />
+          </Routes>
         </main>
       </div>
 
@@ -48,9 +52,11 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <BrowserRouter>
+      <AppProvider>
+        <AppLayout />
+      </AppProvider>
+    </BrowserRouter>
   );
 };
 
