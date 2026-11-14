@@ -61,12 +61,14 @@ export const Sidebar: React.FC = () => {
           </nav>
         </div>
 
-        {/* Bottom PWA / Offline badge */}
-        <div className="bg-[#13192b]/80 border border-slate-800/80 rounded-2xl p-3.5 text-xs text-slate-400 flex items-start gap-2.5 shadow-sm">
-          <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-          <div className="leading-snug">
-            <span className="font-semibold text-slate-200 block mb-0.5">PWA Offline Mode</span>
-            <span>All progress is stored safely in your browser.</span>
+        {/* Bottom SQLite3 / PWA badge */}
+        <div className="bg-[#13192b]/90 border border-slate-800/80 rounded-2xl p-3.5 text-xs text-slate-400 flex flex-col gap-2 shadow-sm">
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="leading-snug">
+              <span className="font-semibold text-slate-200 block mb-0.5">SQLite3 Local Cache</span>
+              <span className="text-[11px] text-slate-400">Offline database stored in browser tokens. No login required.</span>
+            </div>
           </div>
         </div>
       </aside>

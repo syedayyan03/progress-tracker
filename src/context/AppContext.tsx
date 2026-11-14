@@ -16,6 +16,7 @@ import {
 } from '../data/defaultData';
 import { generateSampleData } from '../data/sampleData';
 import { getYMD } from '../utils/dateUtils';
+import { syncStateToSQLite, getSQLiteCacheToken } from '../services/sqliteService';
 
 interface AppContextType {
   state: AppState;
@@ -23,6 +24,7 @@ interface AppContextType {
   setCurrentView: (view: ViewMode) => void;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
+  sqliteToken: string;
   activeModal: {
     type: 'topic' | 'habit' | 'addTopic' | 'addSubject' | 'sampleData' | 'resetData';
     id?: string;
@@ -63,12 +65,12 @@ const STORAGE_KEY = 'sis_progress_tracker_state';
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [sqliteToken, setSqliteToken] = useState<string>(() => getSQLiteCacheToken());
   const [state, setState] = useState<AppState>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Migration check: ensure subjects and topics map exist
         if (!parsed.lists?.subjects || parsed.lists.subjects.length < 5) {
           const defaultTopics: Record<string, TopicItem[]> = {
             medicine: parsed.lists?.medicine || DEFAULT_MEDICINE_TOPICS,
@@ -111,8 +113,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      // Asynchronously sync state directly into SQLite3 database
+      syncStateToSQLite(state).then(token => {
+        if (token) setSqliteToken(token);
+      });
     } catch (e) {
-      console.error('Failed to save state to localStorage:', e);
+      console.error('Failed to save state:', e);
     }
   }, [state]);
 
@@ -535,6 +541,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentView,
         selectedDate,
         setSelectedDate,
+        sqliteToken,
         activeModal,
         openModal,
         closeModal,

@@ -1,10 +1,10 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { getYMD, addDays, formatDateDisplay, calculateStreak } from '../../utils/dateUtils';
-import { ChevronLeft, ChevronRight, Flame, Sun, Moon, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Sun, Moon, Sparkles, Database } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { state, selectedDate, setSelectedDate, setTheme } = useApp();
+  const { state, selectedDate, setSelectedDate, setTheme, sqliteToken } = useApp();
   const todayStr = getYMD();
   const isToday = selectedDate === todayStr;
 
@@ -84,8 +84,17 @@ export const Header: React.FC = () => {
         </button>
       </div>
 
-      {/* Right side: Streak pill + Theme toggle */}
-      <div className="flex items-center gap-3">
+      {/* Right side: Streak pill + SQLite3 token pill + Theme toggle */}
+      <div className="flex items-center gap-2.5">
+        {/* SQLite3 Cache Token Badge */}
+        <div 
+          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-900 border border-emerald-500/20 text-emerald-400 font-medium text-[11px] tracking-wide shadow-sm"
+          title={`SQLite3 in-browser cache token: ${sqliteToken}`}
+        >
+          <Database className="w-3.5 h-3.5 text-emerald-400" />
+          <span>SQLite3</span>
+        </div>
+
         {/* Streak Pill */}
         <div 
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-semibold text-xs tracking-wide shadow-sm"
