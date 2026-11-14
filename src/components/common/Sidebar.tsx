@@ -8,7 +8,8 @@ import {
   Settings as SettingsIcon,
   ShieldCheck,
   CheckSquare,
-  Database
+  Database,
+  ListTodo
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -18,6 +19,7 @@ export const Sidebar: React.FC = () => {
 
   const navItems = [
     { id: 'today', path: '/today', label: 'Today', icon: CheckCircle2 },
+    { id: 'tasks', path: '/tasks', label: 'Manage Tasks', icon: ListTodo },
     { id: 'calendar', path: '/calendar', label: 'Calendar', icon: CalendarIcon },
     { id: 'analytics', path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'settings', path: '/settings', label: 'Settings', icon: SettingsIcon },

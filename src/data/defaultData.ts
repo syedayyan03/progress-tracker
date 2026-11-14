@@ -196,6 +196,10 @@ export const getInitialState = (): AppState => {
     settings: {
       startDate: '2026-11-15',
       theme: 'dark',
+      notifications: {
+        enabled: false,
+        time: '21:00',
+      },
     },
     lists: {
       subjects: DEFAULT_SUBJECTS,

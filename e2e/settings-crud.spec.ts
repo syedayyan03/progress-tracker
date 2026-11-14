@@ -16,7 +16,10 @@ test.describe('Settings View & CRUD Operations', () => {
     await expect(page.locator('strong:has-text("Day")')).toBeVisible();
   });
 
-  test('should perform CRUD on checklist items (add, edit, move, delete)', async ({ page }) => {
+  test('should perform CRUD on checklist items in Manage Tasks (add, edit, move, delete)', async ({ page }) => {
+    // Navigate to Manage Tasks
+    await page.getByRole('button', { name: 'Manage Tasks' }).first().click();
+
     // Switch to Medicine tab
     await page.getByRole('button', { name: /Medicine/ }).click();
 
@@ -56,17 +59,35 @@ test.describe('Settings View & CRUD Operations', () => {
     expect(download.suggestedFilename()).toContain('daily_progress_tracker_backup');
   });
 
-  test('should open reset modal and cancel or confirm', async ({ page }) => {
-    await page.getByRole('button', { name: 'Reset All Data' }).click();
-    await expect(page.getByText('Reset All Application Data?')).toBeVisible();
+  test('should configure daily notification time and details in settings', async ({ page }) => {
+    await expect(page.getByText('Daily Study Reminder')).toBeVisible();
+    await expect(page.getByText('Reminder Time')).toBeVisible();
 
-    // Click cancel
+    // Find time input
+    const timeInput = page.locator('input[type="time"]');
+    await expect(timeInput).toBeVisible();
+    await timeInput.fill('22:30');
+    await expect(page.getByText('Notification settings saved')).toBeVisible();
+  });
+
+  test('should handle Danger Zone clear cache data with confirmation popup', async ({ page }) => {
+    // Scroll to Danger Zone at bottom of settings
+    await expect(page.getByText('Danger Zone')).toBeVisible();
+    const clearBtn = page.getByRole('button', { name: 'Clear All Cache Data' });
+    await clearBtn.scrollIntoViewIfNeeded();
+    await clearBtn.click();
+
+    // Confirmation popup must appear
+    await expect(page.getByText('Clear All Cache & Progress?')).toBeVisible();
+    await expect(page.getByText(/You will lose your entire progress/i)).toBeVisible();
+
+    // Click cancel -> no cache deleted, modal closes
     await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByText('Reset All Application Data?')).not.toBeVisible();
+    await expect(page.getByText('Clear All Cache & Progress?')).not.toBeVisible();
 
     // Open again and confirm
-    await page.getByRole('button', { name: 'Reset All Data' }).click();
-    await page.getByRole('button', { name: 'Reset Everything' }).click();
-    await expect(page.getByText('All data reset to defaults')).toBeVisible();
+    await clearBtn.click();
+    await page.getByRole('button', { name: 'Clear Everything' }).click();
+    await expect(page.getByText('All cache data and progress permanently cleared')).toBeVisible();
   });
 });

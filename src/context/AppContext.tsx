@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { AppState, ViewMode, ThemeMode, TopicMeta, ToastMessage, SubjectConfig, TopicItem } from '../types';
+import type { AppState, ViewMode, ThemeMode, TopicMeta, ToastMessage, SubjectConfig, TopicItem, NotificationSettings } from '../types';
 import { 
   getInitialState, 
   DEFAULT_SUBJECTS,
@@ -16,7 +16,7 @@ import {
 } from '../data/defaultData';
 import { generateSampleData } from '../data/sampleData';
 import { getYMD } from '../utils/dateUtils';
-import { syncStateToSQLite, getSQLiteCacheToken } from '../services/sqliteService';
+import { syncStateToSQLite, getSQLiteCacheToken, clearSQLiteDatabase } from '../services/sqliteService';
 
 interface AppContextType {
   state: AppState;
@@ -26,7 +26,7 @@ interface AppContextType {
   setSelectedDate: (date: string) => void;
   sqliteToken: string;
   activeModal: {
-    type: 'topic' | 'habit' | 'addTopic' | 'addSubject' | 'sampleData' | 'resetData';
+    type: 'topic' | 'habit' | 'addTopic' | 'addSubject' | 'sampleData' | 'resetData' | 'clearCache';
     id?: string;
     category?: string;
     defaultDay?: number;
@@ -47,6 +47,9 @@ interface AppContextType {
   updateDailyNotes: (dateStr: string, notes: string) => void;
   updateTopicMeta: (topicId: string, meta: Partial<TopicMeta>) => void;
   updateStartDate: (dateStr: string) => void;
+  updateNotificationSettings: (settings: Partial<NotificationSettings>) => void;
+  requestNotificationPermission: () => Promise<boolean>;
+  sendTestNotification: () => void;
   setTheme: (theme: ThemeMode) => void;
   addSubject: (subject: { name: string; color: string }) => void;
   deleteSubject: (subjectId: string) => void;
@@ -56,6 +59,7 @@ interface AppContextType {
   deleteItem: (categoryOrSubjectId: string, id: string) => void;
   loadSampleData: () => void;
   resetAllData: () => void;
+  clearAllCacheData: () => Promise<void>;
   importData: (imported: AppState) => void;
   exportData: () => void;
 }
@@ -273,6 +277,120 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     addToast('Start date updated');
   };
+
+  const updateNotificationSettings = (notif: Partial<NotificationSettings>) => {
+    setState(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        notifications: {
+          ...(prev.settings.notifications || { enabled: false, time: '21:00' }),
+          ...notif,
+        },
+      },
+    }));
+    addToast('Notification settings saved');
+  };
+
+  const requestNotificationPermission = async (): Promise<boolean> => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      addToast('Browser notifications are not supported on this device/browser', 'warning');
+      return false;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        updateNotificationSettings({ enabled: true });
+        addToast('Daily notification permission granted! 🔔');
+        return true;
+      } else {
+        updateNotificationSettings({ enabled: false });
+        addToast('Notification permission was denied in browser settings', 'warning');
+        return false;
+      }
+    } catch (e) {
+      console.error(e);
+      addToast('Error requesting notification permission', 'error');
+      return false;
+    }
+  };
+
+  const sendTestNotification = () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      addToast('Notifications not supported in this browser', 'warning');
+      return;
+    }
+
+    if (Notification.permission !== 'granted') {
+      addToast('Please allow notification permission first', 'warning');
+      return;
+    }
+
+    try {
+      new Notification('Daily Progress Reminder 📚', {
+        body: "Test reminder: You haven't logged any reading or study topics today yet! Spend 15 minutes to keep your streak alive.",
+        icon: '/vite.svg',
+      });
+      addToast('Test notification sent!');
+    } catch (e) {
+      console.error(e);
+      addToast('Failed to send test notification', 'error');
+    }
+  };
+
+  useEffect(() => {
+    const checkNotification = () => {
+      const notif = state.settings.notifications;
+      if (!notif?.enabled || typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
+        return;
+      }
+
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTime = `${currentHours}:${currentMinutes}`;
+      const todayStr = getYMD();
+
+      // Trigger if current time has reached or passed scheduled time and we haven't notified today
+      if (currentTime >= notif.time && notif.lastNotificationDate !== todayStr) {
+        const dayLog = state.logs[todayStr];
+        let totalTopics = (dayLog?.medicine?.length || 0) + (dayLog?.ortho?.length || 0);
+        if (dayLog?.subjectCompletions) {
+          Object.values(dayLog.subjectCompletions).forEach(list => {
+            totalTopics += (list || []).length;
+          });
+        }
+
+        if (totalTopics === 0) {
+          try {
+            new Notification('Daily Progress Reminder 📚', {
+              body: "You haven't logged any study topics yet today! Take 15 minutes to review and protect your streak.",
+              icon: '/vite.svg',
+            });
+          } catch (e) {
+            console.error('Failed to trigger daily notification:', e);
+          }
+        }
+
+        // Mark today as notified
+        setState(prev => ({
+          ...prev,
+          settings: {
+            ...prev.settings,
+            notifications: {
+              ...(prev.settings.notifications || { enabled: true, time: '21:00' }),
+              lastNotificationDate: todayStr,
+            },
+          },
+        }));
+      }
+    };
+
+    checkNotification();
+    const interval = setInterval(checkNotification, 30000);
+    return () => clearInterval(interval);
+  }, [state.settings.notifications, state.logs]);
 
   const setTheme = (theme: ThemeMode) => {
     setState(prev => ({
@@ -504,6 +622,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     closeModal();
   };
 
+  const clearAllCacheData = async () => {
+    try {
+      await clearSQLiteDatabase();
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('sqlite3_cache_token_db');
+      localStorage.removeItem('sqlite3_cache_token');
+      const fresh = getInitialState();
+      setState(fresh);
+      setSqliteToken('sql3_token_cleared');
+      addToast('All cache data and progress permanently cleared');
+      closeModal();
+    } catch (e) {
+      console.error('Failed to clear cache:', e);
+      addToast('Failed to clear all cache', 'error');
+    }
+  };
+
   const importData = (imported: AppState) => {
     if (!imported.lists || !imported.settings) {
       addToast('Invalid backup file format', 'error');
@@ -555,6 +690,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateDailyNotes,
         updateTopicMeta,
         updateStartDate,
+        updateNotificationSettings,
+        requestNotificationPermission,
+        sendTestNotification,
         setTheme,
         addSubject,
         deleteSubject,
@@ -564,6 +702,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteItem,
         loadSampleData,
         resetAllData,
+        clearAllCacheData,
         importData,
         exportData,
       }}

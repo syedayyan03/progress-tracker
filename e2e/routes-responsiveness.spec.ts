@@ -8,6 +8,18 @@ test.describe('Direct Route Loading & Strict Responsiveness', () => {
     await expect(page.getByRole('heading', { name: /Today's Study/i })).toBeVisible();
   });
 
+  test('direct navigation to /tasks loads Manage Tasks view', async ({ page }) => {
+    await page.goto('/tasks');
+    await expect(page).toHaveURL(/\/tasks/);
+    await expect(page.getByText('Manage Tasks & Curriculum')).toBeVisible();
+  });
+
+  test('direct navigation to /manage-tasks redirects to /tasks', async ({ page }) => {
+    await page.goto('/manage-tasks');
+    await expect(page).toHaveURL(/\/tasks/);
+    await expect(page.getByText('Manage Tasks & Curriculum')).toBeVisible();
+  });
+
   test('direct navigation to /calendar loads Calendar view', async ({ page }) => {
     await page.goto('/calendar');
     await expect(page).toHaveURL(/\/calendar/);

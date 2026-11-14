@@ -9,12 +9,17 @@ test.describe('Views Navigation & Global Controls', () => {
     await expect(page).toHaveTitle(/Daily Progress Tracker/i);
     await expect(page.getByRole('heading', { name: 'Daily Progress' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Today', exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Manage Tasks' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Calendar' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Analytics' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Settings' }).first()).toBeVisible();
   });
 
-  test('should navigate between all 4 views seamlessly', async ({ page }) => {
+  test('should navigate between all 5 views seamlessly', async ({ page }) => {
+    // Navigate to Manage Tasks
+    await page.getByRole('button', { name: 'Manage Tasks' }).first().click();
+    await expect(page.getByText('Manage Tasks & Curriculum')).toBeVisible();
+
     // Navigate to Calendar
     await page.getByRole('button', { name: 'Calendar' }).first().click();
     await expect(page.getByText('Calendar Progress')).toBeVisible();

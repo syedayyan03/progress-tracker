@@ -1,6 +1,12 @@
-export type ViewMode = 'today' | 'calendar' | 'analytics' | 'settings';
+export type ViewMode = 'today' | 'calendar' | 'analytics' | 'tasks' | 'settings';
 
 export type ThemeMode = 'system' | 'dark' | 'light';
+
+export interface NotificationSettings {
+  enabled: boolean;
+  time: string; // HH:mm format, e.g. "21:00"
+  lastNotificationDate?: string;
+}
 
 export interface SubjectConfig {
   id: string;
@@ -39,6 +45,7 @@ export interface AppState {
   settings: {
     startDate: string; // YYYY-MM-DD
     theme: ThemeMode;
+    notifications?: NotificationSettings;
   };
   lists: {
     subjects: SubjectConfig[];

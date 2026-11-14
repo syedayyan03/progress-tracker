@@ -1,23 +1,21 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDateDisplay, getSyllabusDay, getYMD } from '../../utils/dateUtils';
-import { getSubjectTheme } from '../../utils/subjectColors';
 import { 
   Calendar, 
   Palette, 
-  ListOrdered, 
   Database, 
   Download, 
   Upload, 
   Sparkles, 
-  RotateCcw, 
-  ArrowUp, 
-  ArrowDown, 
+  Bell, 
+  BellRing, 
+  Clock, 
+  AlertTriangle, 
   Trash2, 
-  Plus, 
-  Check, 
-  Edit2,
-  BookPlus
+  ShieldAlert, 
+  CheckCircle2, 
+  AlertCircle
 } from 'lucide-react';
 import type { ThemeMode } from '../../types';
 
@@ -25,35 +23,27 @@ export const SettingsView: React.FC = () => {
   const { 
     state, 
     updateStartDate, 
+    updateNotificationSettings, 
+    requestNotificationPermission, 
+    sendTestNotification, 
     setTheme, 
-    addItem, 
-    updateItemTitle, 
-    moveItem, 
-    deleteItem, 
     exportData, 
     importData, 
-    openModal,
-    getSubjectTopics,
-    deleteSubject
+    openModal 
   } = useApp();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const subjects = state.lists.subjects || [];
-
-  // Settings active checklist tab (defaults to 'medicine')
-  const [activeTab, setActiveTab] = useState<string>('medicine');
-
-  // Add Item form state
-  const [newTitle, setNewTitle] = useState('');
-  const [newDay, setNewDay] = useState<number>(1);
-
-  // Editing Item state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
-
   const todayStr = getYMD();
   const currentSyllabusDay = getSyllabusDay(state.settings.startDate, todayStr);
+
+  const notifications = state.settings.notifications || {
+    enabled: false,
+    time: '21:00',
+  };
+
+  const hasNotificationSupport = typeof window !== 'undefined' && 'Notification' in window;
+  const currentPermission = hasNotificationSupport ? Notification.permission : 'unsupported';
 
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.value) {
@@ -61,28 +51,20 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleAddItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-
-    if (activeTab === 'habits') {
-      addItem('habits', { title: newTitle.trim() });
+  const handleToggleNotifications = async () => {
+    if (!notifications.enabled) {
+      const granted = await requestNotificationPermission();
+      if (!granted && currentPermission === 'denied') {
+        // Can't grant if denied in browser
+        return;
+      }
     } else {
-      addItem(activeTab, { title: newTitle.trim(), day: Number(newDay) || 1 });
+      updateNotificationSettings({ enabled: false });
     }
-    setNewTitle('');
   };
 
-  const startEditing = (id: string, title: string) => {
-    setEditingId(id);
-    setEditingTitle(title);
-  };
-
-  const saveEditing = (id: string) => {
-    if (editingTitle.trim()) {
-      updateItemTitle(activeTab, id, editingTitle.trim());
-    }
-    setEditingId(null);
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateNotificationSettings({ time: e.target.value });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,10 +86,6 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const listItems = (activeTab === 'habits' ? state.lists.habits : getSubjectTopics(activeTab)) as any[];
-  const activeSubject = subjects.find(s => s.id === activeTab);
-  const isCustomSubject = activeSubject && !['medicine', 'ortho'].includes(activeSubject.id);
-
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-16">
       {/* Header */}
@@ -116,7 +94,7 @@ export const SettingsView: React.FC = () => {
           Settings & Configuration
         </h2>
         <p className="text-sm text-slate-400 font-medium">
-          Customize your study schedule, syllabus items, appearance, and backups
+          Customize curriculum start date, appearance, backups, daily reminders, and data storage
         </p>
       </div>
 
@@ -168,7 +146,7 @@ export const SettingsView: React.FC = () => {
               <button
                 key={mode}
                 onClick={() => setTheme(mode)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
                   state.settings.theme === mode
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -181,202 +159,7 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Manage Checklist Items */}
-      <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <ListOrdered className="w-5 h-5 text-indigo-400" />
-            <h3 className="font-display font-bold text-base text-slate-100">
-              Manage Checklist Items
-            </h3>
-          </div>
-
-          {/* Add Subject Button */}
-          <button
-            type="button"
-            onClick={() => openModal({ type: 'addSubject' })}
-            className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <BookPlus className="w-4 h-4" />
-            <span>+ Add Subject</span>
-          </button>
-        </div>
-
-        {/* Dynamic Subjects Tab Bar */}
-        <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-            {subjects.map(subj => {
-              const count = getSubjectTopics(subj.id).length;
-              const theme = getSubjectTheme(subj.color);
-              const isActive = activeTab === subj.id;
-              return (
-                <button
-                  key={subj.id}
-                  onClick={() => setActiveTab(subj.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
-                    isActive
-                      ? `${theme.badge} ring-1 ring-white/20`
-                      : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                  }`}
-                >
-                  {subj.name} ({count})
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() => setActiveTab('habits')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
-                activeTab === 'habits'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                  : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-              }`}
-            >
-              Habits ({state.lists.habits.length})
-            </button>
-          </div>
-
-          {isCustomSubject && (
-            <button
-              type="button"
-              onClick={() => {
-                deleteSubject(activeSubject.id);
-                setActiveTab('medicine');
-              }}
-              className="text-xs text-rose-400 hover:text-rose-300 px-2 py-1 rounded-lg hover:bg-rose-500/10 shrink-0 font-medium transition-colors"
-            >
-              Remove Subject
-            </button>
-          )}
-        </div>
-
-        {/* Add Item Form */}
-        <form onSubmit={handleAddItem} className="flex flex-col sm:flex-row items-center gap-2">
-          {activeTab !== 'habits' && (
-            <div className="w-full sm:w-28 shrink-0">
-              <input
-                type="number"
-                min="1"
-                max="365"
-                value={newDay}
-                onChange={e => setNewDay(parseInt(e.target.value) || 1)}
-                placeholder="Day"
-                title="Syllabus Day"
-                className="w-full px-3 py-2 rounded-xl bg-[#0b0f19] border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 font-medium"
-              />
-            </div>
-          )}
-
-          <input
-            type="text"
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            placeholder={`Add new ${activeSubject ? activeSubject.name : 'habit'} item...`}
-            className="w-full px-3.5 py-2 rounded-xl bg-[#0b0f19] border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500"
-          />
-
-          <button
-            type="submit"
-            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add</span>
-          </button>
-        </form>
-
-        {/* List of Items */}
-        <div className="flex flex-col gap-2 max-h-96 overflow-y-auto pr-1">
-          {listItems.map((item, idx) => {
-            const isEditing = editingId === item.id;
-            return (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-colors"
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0 mr-2">
-                  {item.day !== undefined ? (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-800 text-indigo-400 shrink-0">
-                      Day {item.day}
-                    </span>
-                  ) : (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-800 text-emerald-400 shrink-0">
-                      #{idx + 1}
-                    </span>
-                  )}
-
-                  {isEditing ? (
-                    <div className="flex items-center gap-1.5 flex-1">
-                      <input
-                        type="text"
-                        aria-label="Edit item title"
-                        value={editingTitle}
-                        onChange={e => setEditingTitle(e.target.value)}
-                        className="flex-1 px-2.5 py-1 rounded-lg bg-[#0b0f19] border border-indigo-500 text-sm text-slate-100 focus:outline-none"
-                        autoFocus
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') saveEditing(item.id);
-                          if (e.key === 'Escape') setEditingId(null);
-                        }}
-                      />
-                      <button
-                        onClick={() => saveEditing(item.id)}
-                        className="p-1 text-emerald-400 hover:text-emerald-300"
-                        title="Save title"
-                        aria-label="Save title"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <span
-                      onClick={() => startEditing(item.id, item.title)}
-                      className="text-sm font-medium text-slate-200 truncate cursor-pointer hover:text-indigo-300 flex items-center gap-2 group"
-                      title="Click to rename"
-                    >
-                      <span>{item.title}</span>
-                      <Edit2 className="w-3 h-3 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </span>
-                  )}
-                </div>
-
-                {/* Actions: Move up, Move down, Delete */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => moveItem(activeTab, idx, 'up')}
-                    disabled={idx === 0}
-                    title="Move up"
-                    aria-label="Move up"
-                    className="p-1 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
-                  >
-                    <ArrowUp className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => moveItem(activeTab, idx, 'down')}
-                    disabled={idx === listItems.length - 1}
-                    title="Move down"
-                    aria-label="Move down"
-                    className="p-1 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
-                  >
-                    <ArrowDown className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => deleteItem(activeTab, item.id)}
-                    title="Delete item"
-                    aria-label="Delete item"
-                    className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 4. Data Tools & Backups */}
+      {/* 3. Data Tools & Backups */}
       <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
           <Database className="w-5 h-5 text-indigo-400" />
@@ -386,14 +169,14 @@ export const SettingsView: React.FC = () => {
         </div>
 
         <p className="text-xs text-slate-400">
-          Your data lives completely on your device. Export backups regularly or load sample data to explore analytics.
+          Your data lives completely on your device using in-browser SQLite3 cache tokens. Export backups regularly or load sample data to explore analytics.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Export JSON */}
           <button
             onClick={exportData}
-            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-bold transition-all shadow-sm"
+            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-bold transition-all shadow-sm cursor-pointer hover:bg-slate-900"
           >
             <Download className="w-4 h-4 text-indigo-400" />
             <span>Export Backup (JSON)</span>
@@ -402,7 +185,7 @@ export const SettingsView: React.FC = () => {
           {/* Import JSON */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-bold transition-all shadow-sm"
+            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-bold transition-all shadow-sm cursor-pointer hover:bg-slate-900"
           >
             <Upload className="w-4 h-4 text-emerald-400" />
             <span>Import Backup (JSON)</span>
@@ -418,19 +201,156 @@ export const SettingsView: React.FC = () => {
           {/* Load Sample Data */}
           <button
             onClick={() => openModal({ type: 'sampleData' })}
-            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 text-indigo-300 text-xs font-bold transition-all shadow-sm"
+            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 text-indigo-300 text-xs font-bold transition-all shadow-sm cursor-pointer hover:bg-slate-900"
           >
             <Sparkles className="w-4 h-4 text-indigo-400" />
             <span>Load Sample Data (Preview)</span>
           </button>
+        </div>
+      </div>
 
-          {/* Reset All Data */}
+      {/* 4. Daily Notification Details */}
+      <div className="bg-[#13192b] border border-slate-800/80 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <BellRing className="w-5 h-5 text-indigo-400" />
+            <div>
+              <h3 className="font-display font-bold text-base text-slate-100">
+                Daily Study Reminder
+              </h3>
+              <p className="text-xs text-slate-400">
+                Automated notification if you haven't logged any reading or study topics
+              </p>
+            </div>
+          </div>
+
+          {/* Permission Status Pill */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-900/80 border border-slate-800">
+            {currentPermission === 'granted' ? (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400">Permission Allowed</span>
+              </>
+            ) : currentPermission === 'denied' ? (
+              <>
+                <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                <span className="text-rose-400">Permission Blocked</span>
+              </>
+            ) : (
+              <>
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-amber-400">Permission Not Set</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Toggle & Time Picker Controls */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          {/* Enable / Disable Switch */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-bold text-slate-200">
+                Enable Daily Reminder
+              </span>
+              <span className="text-xs text-slate-400">
+                Alerts you if zero reading is logged
+              </span>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifications.enabled}
+              onClick={handleToggleNotifications}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                notifications.enabled ? 'bg-indigo-600' : 'bg-slate-700'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  notifications.enabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Time Picker */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-bold text-slate-200">
+                Reminder Time
+              </span>
+              <span className="text-xs text-slate-400">
+                Daily check & alert time
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-indigo-400" />
+              <input
+                type="time"
+                value={notifications.time}
+                onChange={handleTimeChange}
+                className="px-3 py-1.5 rounded-lg bg-[#0b0f19] border border-slate-800 text-slate-100 text-sm font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Informational Explanation & Test Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-indigo-950/20 border border-indigo-900/30 text-xs text-slate-300">
+          <div className="flex items-start gap-2.5">
+            <Bell className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              When enabled, a native browser alert triggers at <strong className="text-indigo-300">{notifications.time}</strong> only if you have <strong>not checked off any study topics</strong> for the day. If you already studied, no notification is sent.
+            </p>
+          </div>
+
+          {currentPermission === 'granted' && (
+            <button
+              type="button"
+              onClick={sendTestNotification}
+              className="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 font-semibold text-xs shrink-0 transition-all cursor-pointer"
+            >
+              Send Test Alert
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 5. Danger Zone (At the very bottom) */}
+      <div className="bg-gradient-to-b from-[#1a111a] to-[#140d17] border border-rose-900/60 rounded-2xl p-5 shadow-lg shadow-rose-950/20 flex flex-col gap-4 mt-2">
+        <div className="flex items-center gap-2.5 pb-2 border-b border-rose-900/50">
+          <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0" />
+          <div>
+            <h3 className="font-display font-bold text-base text-rose-200">
+              Danger Zone
+            </h3>
+            <p className="text-xs text-rose-400/80">
+              Irreversible actions that permanently delete your stored data
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-rose-950/30 border border-rose-900/50">
+          <div className="flex flex-col gap-1 max-w-xl">
+            <span className="text-sm font-bold text-rose-100 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-400" />
+              <span>Clear All Cache Data & Progress</span>
+            </span>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Permanently erase all daily study logs, completed topics, habit streaks, custom subjects, and local in-browser SQLite3 cache tokens. A confirmation popup will prompt you before anything is cleared.
+            </p>
+          </div>
+
           <button
-            onClick={() => openModal({ type: 'resetData' })}
-            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-rose-950/20 border border-rose-900/40 hover:border-rose-700/60 text-rose-300 text-xs font-bold transition-all shadow-sm"
+            type="button"
+            onClick={() => openModal({ type: 'clearCache' })}
+            className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 transition-all shrink-0 cursor-pointer"
           >
-            <RotateCcw className="w-4 h-4 text-rose-400" />
-            <span>Reset All Data</span>
+            <Trash2 className="w-4 h-4" />
+            <span>Clear All Cache Data</span>
           </button>
         </div>
       </div>

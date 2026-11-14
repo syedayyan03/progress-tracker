@@ -111,6 +111,9 @@ export const syncStateToSQLite = async (state: AppState): Promise<string> => {
     const stmtSettings = db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?);');
     stmtSettings.run(['startDate', state.settings.startDate]);
     stmtSettings.run(['theme', state.settings.theme]);
+    if (state.settings.notifications) {
+      stmtSettings.run(['notifications', JSON.stringify(state.settings.notifications)]);
+    }
     stmtSettings.free();
 
     // 2. Subjects
@@ -210,10 +213,16 @@ export const loadStateFromSQLite = async (): Promise<AppState | null> => {
     const settingsRes = db.exec('SELECT key, value FROM app_settings;');
     let startDate = '';
     let theme: 'system' | 'dark' | 'light' = 'dark';
+    let notifications: AppState['settings']['notifications'] = { enabled: false, time: '21:00' };
     if (settingsRes.length > 0) {
       settingsRes[0].values.forEach(([key, val]) => {
         if (key === 'startDate') startDate = String(val);
         if (key === 'theme') theme = val as any;
+        if (key === 'notifications' && val) {
+          try {
+            notifications = JSON.parse(String(val));
+          } catch {}
+        }
       });
     }
 
@@ -306,6 +315,7 @@ export const loadStateFromSQLite = async (): Promise<AppState | null> => {
       settings: {
         startDate,
         theme,
+        notifications,
       },
       lists: {
         subjects,
@@ -320,6 +330,23 @@ export const loadStateFromSQLite = async (): Promise<AppState | null> => {
   } catch (e) {
     console.error('Error reading from SQLite3 browser database:', e);
     return null;
+  }
+};
+
+export const clearSQLiteDatabase = async (): Promise<void> => {
+  try {
+    localStorage.removeItem(SQLITE_DB_KEY);
+    localStorage.removeItem(SQLITE_TOKEN_KEY);
+    if (dbInstance) {
+      try {
+        dbInstance.close();
+      } catch (err) {
+        console.warn('Error closing SQLite DB instance:', err);
+      }
+      dbInstance = null;
+    }
+  } catch (e) {
+    console.error('Error clearing SQLite cache:', e);
   }
 };
 

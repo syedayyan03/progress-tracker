@@ -46,9 +46,9 @@ test.describe('Subjects and Custom Checklist Items', () => {
     await expect(page.getByText('Paediatric Growth Hormone Deficiency')).toBeVisible();
   });
 
-  test('should create a new custom subject and add items under it in Settings', async ({ page }) => {
-    // Navigate to Settings
-    await page.getByRole('button', { name: 'Settings' }).first().click();
+  test('should create a new custom subject and add items under it in Manage Tasks', async ({ page }) => {
+    // Navigate to Manage Tasks
+    await page.getByRole('button', { name: 'Manage Tasks' }).first().click();
 
     // Click "+ Add Subject" button
     await page.getByRole('button', { name: '+ Add Subject' }).click();

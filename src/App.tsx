@@ -8,6 +8,7 @@ import { TodayView } from './components/today/TodayView';
 import { CalendarView } from './components/calendar/CalendarView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
+import { ManageTasksView } from './components/tasks/ManageTasksView';
 import { TopicDetailsModal } from './components/modals/TopicDetailsModal';
 import { HabitDetailsModal } from './components/modals/HabitDetailsModal';
 import { AddTopicModal } from './components/modals/AddTopicModal';
@@ -28,6 +29,8 @@ const AppLayout: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/today" replace />} />
             <Route path="/today" element={<TodayView />} />
+            <Route path="/tasks" element={<ManageTasksView />} />
+            <Route path="/manage-tasks" element={<Navigate to="/tasks" replace />} />
             <Route path="/calendar" element={<CalendarView />} />
             <Route path="/calender" element={<Navigate to="/calendar" replace />} />
             <Route path="/analytics" element={<AnalyticsView />} />
